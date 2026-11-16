@@ -2,7 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
 export type { Json } from './database.types';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const rawUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+// Admite una ruta relativa (p. ej. "/supabase", servida por el proxy de Vite en desarrollo).
+const url = rawUrl?.startsWith('/') ? `${window.location.origin}${rawUrl}` : rawUrl;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
 
 export const supabaseConfigured = Boolean(url && key);
