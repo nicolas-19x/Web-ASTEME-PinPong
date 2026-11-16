@@ -7,7 +7,7 @@
 
 insert into public.academy_settings (id, name, short_name, theme)
 values (true, 'Academia de Tenis de Mesa', 'ATM',
-  '{"primary":"#0B1F3A","secondary":"#13294B","accent":"#FF6B1A","accent2":"#B8F23A","mode":"system","fontDisplay":"Barlow Condensed","fontBody":"Inter"}'::jsonb)
+  '{"primary":"#0C1B33","secondary":"#1B4F8C","accent":"#FF6B1A","accent2":"#B4E33D","mode":"system","font":"archivo"}'::jsonb)
 on conflict (id) do nothing;
 
 insert into public.categories (name, sort_order) values

@@ -1,122 +1,86 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { lazy, Suspense, type ReactNode } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { AppShell } from '@/components/app/AppShell';
+import { Loading } from '@/components/app/common';
+import { useAuth, type Role } from '@/lib/auth';
+import Login from '@/pages/Login';
 
-function App() {
-  const [count, setCount] = useState(0)
+const Dashboard = lazy(() => import('@/pages/admin/Dashboard'));
+const PlayersList = lazy(() => import('@/pages/admin/players/PlayersList'));
+const PlayerDetail = lazy(() => import('@/pages/admin/players/PlayerDetail'));
+const TournamentsList = lazy(() => import('@/pages/admin/tournaments/TournamentsList'));
+const TournamentWizard = lazy(() => import('@/pages/admin/tournaments/TournamentWizard'));
+const TournamentDetail = lazy(() => import('@/pages/admin/tournaments/TournamentDetail'));
+const Scoreboard = lazy(() => import('@/pages/admin/tournaments/Scoreboard'));
+const Competitions = lazy(() => import('@/pages/admin/Competitions'));
+const CompetitionDetail = lazy(() => import('@/pages/admin/CompetitionDetail'));
+const CalendarPage = lazy(() => import('@/pages/shared/CalendarPage'));
+const Schedules = lazy(() => import('@/pages/admin/Schedules'));
+const Attendance = lazy(() => import('@/pages/admin/Attendance'));
+const Announcements = lazy(() => import('@/pages/admin/Announcements'));
+const Statistics = lazy(() => import('@/pages/admin/Statistics'));
+const Reports = lazy(() => import('@/pages/admin/Reports'));
+const SettingsPage = lazy(() => import('@/pages/admin/settings/SettingsPage'));
+const PortalHome = lazy(() => import('@/pages/portal/PortalHome'));
+const PortalPlayer = lazy(() => import('@/pages/portal/PortalPlayer'));
+const PortalSchedule = lazy(() => import('@/pages/portal/PortalSchedule'));
+const PortalAnnouncements = lazy(() => import('@/pages/portal/PortalAnnouncements'));
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+function RequireRole({ roles, children }: { roles: Role[]; children: ReactNode }) {
+  const { loading, session, role } = useAuth();
+  if (loading) return <Loading label="Verificando sesión…" />;
+  if (!session || !role) return <Navigate to="/login" replace />;
+  if (!roles.includes(role)) return <Navigate to={role === 'admin' ? '/' : '/portal'} replace />;
+  return <>{children}</>;
 }
 
-export default App
+const page = (el: ReactNode) => <Suspense fallback={<Loading />}>{el}</Suspense>;
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          element={
+            <RequireRole roles={['admin']}>
+              <AppShell />
+            </RequireRole>
+          }
+        >
+          <Route index element={page(<Dashboard />)} />
+          <Route path="jugadores" element={page(<PlayersList />)} />
+          <Route path="jugadores/:id" element={page(<PlayerDetail />)} />
+          <Route path="torneos" element={page(<TournamentsList />)} />
+          <Route path="torneos/nuevo" element={page(<TournamentWizard />)} />
+          <Route path="torneos/:id" element={page(<TournamentDetail />)} />
+          <Route path="torneos/:id/marcador/:matchId" element={page(<Scoreboard />)} />
+          <Route path="competencias" element={page(<Competitions />)} />
+          <Route path="competencias/:id" element={page(<CompetitionDetail />)} />
+          <Route path="calendario" element={page(<CalendarPage />)} />
+          <Route path="horarios" element={page(<Schedules />)} />
+          <Route path="asistencia" element={page(<Attendance />)} />
+          <Route path="comunicados" element={page(<Announcements />)} />
+          <Route path="estadisticas" element={page(<Statistics />)} />
+          <Route path="informes" element={page(<Reports />)} />
+          <Route path="configuracion" element={page(<SettingsPage />)} />
+        </Route>
+        <Route
+          path="/portal"
+          element={
+            <RequireRole roles={['player', 'guardian']}>
+              <AppShell portal />
+            </RequireRole>
+          }
+        >
+          <Route index element={page(<PortalHome />)} />
+          <Route path="jugador/:id" element={page(<PortalPlayer />)} />
+          <Route path="horarios" element={page(<PortalSchedule />)} />
+          <Route path="calendario" element={page(<CalendarPage portal />)} />
+          <Route path="comunicados" element={page(<PortalAnnouncements />)} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
