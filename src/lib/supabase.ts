@@ -2,12 +2,32 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
 export type { Json } from './database.types';
 
-const rawUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const CONFIG_KEY = 'atm-supabase-config';
+
+/** Conexión guardada en este navegador (pantalla "Conectar con Supabase"). */
+function storedConfig(): { url?: string; key?: string } {
+  try {
+    return JSON.parse(localStorage.getItem(CONFIG_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+
+const rawUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || storedConfig().url;
 // Admite una ruta relativa (p. ej. "/supabase", servida por el proxy de Vite en desarrollo).
 const url = rawUrl?.startsWith('/') ? `${window.location.origin}${rawUrl}` : rawUrl;
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+const key = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) || storedConfig().key;
 
 export const supabaseConfigured = Boolean(url && key);
+/** true si la conexión viene del navegador (se puede cambiar desde la pantalla de acceso). */
+export const supabaseConfigEditable = !import.meta.env.VITE_SUPABASE_URL;
+
+export function saveSupabaseConfig(cfg: { url: string; key: string }) {
+  localStorage.setItem(CONFIG_KEY, JSON.stringify({ url: cfg.url.trim().replace(/\/+$/, ''), key: cfg.key.trim() }));
+}
+export function clearSupabaseConfig() {
+  localStorage.removeItem(CONFIG_KEY);
+}
 
 // Solo la clave publicable llega al navegador; la seguridad real está en RLS.
 export const supabase = createClient<Database>(url ?? 'http://localhost', key ?? 'missing-key', {

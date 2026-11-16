@@ -5,7 +5,7 @@ import { Field } from '@/components/app/common';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth';
-import { supabaseConfigured } from '@/lib/supabase';
+import { clearSupabaseConfig, saveSupabaseConfig, supabaseConfigEditable, supabaseConfigured } from '@/lib/supabase';
 import { useTheme } from '@/lib/theme';
 
 export default function Login() {
@@ -16,6 +16,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  if (!supabaseConfigured) return <ConnectSupabase />;
   if (!loading && session && role) return <Navigate to={role === 'admin' ? '/' : '/portal'} replace />;
 
   const submit = async (e: FormEvent) => {
@@ -62,11 +63,6 @@ export default function Login() {
           <h1 className="text-[2.2rem]">Iniciar sesión</h1>
           <p className="mt-1.5 text-muted-foreground">Usa la cuenta que te entregó el entrenador.</p>
 
-          {!supabaseConfigured && (
-            <p role="alert" className="mt-4 rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm">
-              Falta configurar Supabase: crea <code>.env.local</code> con VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY.
-            </p>
-          )}
           {session && !loading && !role && (
             <p role="alert" className="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
               {profile && !profile.active
@@ -93,7 +89,74 @@ export default function Login() {
             </Button>
           </form>
           <p className="mt-6 text-sm text-muted-foreground">¿Olvidaste tu contraseña? El entrenador puede asignarte una nueva.</p>
+          {supabaseConfigEditable && (
+            <button
+              type="button"
+              className="mt-2 text-sm text-muted-foreground underline underline-offset-4"
+              onClick={() => {
+                clearSupabaseConfig();
+                window.location.reload();
+              }}
+            >
+              Cambiar la conexión con Supabase
+            </button>
+          )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Primera vez: pide la URL y la clave publicable del proyecto de Supabase y las guarda en este navegador. */
+function ConnectSupabase() {
+  const [url, setUrl] = useState('');
+  const [key, setKey] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const u = url.trim().replace(/\/+$/, '');
+    const k = key.trim();
+    if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(u)) return setError('La URL debe verse así: https://abcd1234.supabase.co');
+    if (/^sb_secret_/.test(k)) return setError('Esa es la clave SECRETA: no la uses aquí. Pega la Publishable key (sb_publishable_...).');
+    if (!/^(sb_publishable_|eyJ)/.test(k)) return setError('Pega la Publishable key: empieza con sb_publishable_');
+    setBusy(true);
+    try {
+      const res = await fetch(`${u}/rest/v1/academy_settings?select=name`, { headers: { apikey: k } });
+      if (!res.ok) throw new Error(res.status === 401 ? 'La clave no corresponde a ese proyecto.' : `Supabase respondió ${res.status}. ¿Ejecutaste los archivos SQL?`);
+      saveSupabaseConfig({ url: u, key: k });
+      window.location.reload();
+    } catch (err) {
+      setError(err instanceof Error && err.message !== 'Failed to fetch' ? err.message : 'No se pudo conectar. Revisa la URL.');
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-background px-5 py-10">
+      <div className="w-full max-w-md">
+        <span className="mb-6 block size-12 rounded-full bg-ball" aria-hidden />
+        <h1 className="text-[2.1rem]">Conectar con Supabase</h1>
+        <p className="mt-1.5 text-muted-foreground">
+          Solo la primera vez. Encuentra estos datos en tu proyecto de Supabase, en Project Settings. Se guardan en este navegador.
+        </p>
+        <form onSubmit={submit} className="mt-6 flex flex-col gap-4" noValidate>
+          <Field label="Project URL" htmlFor="sb-url" hint="En Project Settings → Data API">
+            <Input id="sb-url" placeholder="https://abcd1234.supabase.co" value={url} onChange={(e) => setUrl(e.target.value)} autoComplete="off" />
+          </Field>
+          <Field label="Publishable key" htmlFor="sb-key" hint="En Project Settings → API Keys. Nunca la secret key.">
+            <Input id="sb-key" placeholder="sb_publishable_..." value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          </Field>
+          {error && (
+            <p role="alert" className="text-sm font-medium text-destructive">
+              {error}
+            </p>
+          )}
+          <Button type="submit" size="lg" disabled={busy}>
+            {busy && <Loader2 className="animate-spin" aria-hidden />}
+            Conectar
+          </Button>
+        </form>
       </div>
     </div>
   );
