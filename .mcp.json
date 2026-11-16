@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "shadcn": { "command": "npx", "args": ["-y", "shadcn@latest", "mcp"] },
+    "context7": { "type": "http", "url": "https://mcp.context7.com/mcp" },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest", "--headless", "--isolated", "--executable-path", "/opt/pw-browsers/chromium"]
+    }
+  }
+}
