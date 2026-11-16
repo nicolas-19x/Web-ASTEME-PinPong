@@ -53,7 +53,7 @@ export function Panel({
   bodyClassName?: string;
 }) {
   return (
-    <section className={cn('rounded-xl border bg-card text-card-foreground', className)}>
+    <section className={cn('min-w-0 rounded-xl border bg-card text-card-foreground', className)}>
       {(title || action) && (
         <div className="flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5">
           {title && <h2 className="text-[1.15rem] sm:text-[1.25rem]">{title}</h2>}

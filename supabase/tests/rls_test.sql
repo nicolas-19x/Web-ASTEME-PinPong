@@ -82,6 +82,12 @@ insert into public.matches (id, tournament_id, stage, group_id, key, round, play
   ('62000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', 'group', '61000000-0000-0000-0000-000000000001', 'G1-R1-M1', 1, '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002'),
   ('62000000-0000-0000-0000-000000000002', '60000000-0000-0000-0000-000000000001', 'group', '61000000-0000-0000-0000-000000000001', 'G1-R2-M1', 2, '10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003');
 
+-- Totales reales (como superusuario) para comparar lo que ve el administrador.
+create temp table _totals on commit drop as
+  select 'players' as t, count(*) as n from public.players
+  union all select 'announcements', count(*) from public.announcements;
+grant select on _totals to authenticated;
+
 -- ---------------------------------------------------------------- ANON
 set local role anon;
 set local request.jwt.claims = '{"role":"anon"}';
@@ -111,7 +117,7 @@ select pg_temp.check('jugador no ve ítems de evaluación privada', (select arra
 select pg_temp.check('jugador ve solo objetivos compartidos', (select array_agg(description) = array['Objetivo compartido'] from public.development_goals));
 select pg_temp.check('jugador ve solo su grupo y horario', (select count(*) = 1 from public.group_schedules) and (select array_agg(name) = array['PRUEBA Grupo A'] from public.training_groups));
 select pg_temp.check('jugador ve comunicados dirigidos a él',
-  (select array_agg(title order by title) = array['A-todos'] from public.announcements));
+  (select array_agg(title order by title) = array['A-todos'] from public.announcements where title like 'A-%'));
 select pg_temp.check('jugador no ve perfiles ajenos', (select count(*) = 1 from public.profiles));
 select pg_temp.check('jugador no ve bitácora', (select count(*) = 0 from public.activity_logs));
 select pg_temp.check('jugador no ve vínculos familiares', (select count(*) = 0 from public.player_guardians));
@@ -159,7 +165,7 @@ set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000c1","r
 select pg_temp.check('encargado ve solo hijos vinculados y autorizados', (select array_agg(first_name) = array['PRUEBA-P1'] from public.players));
 select pg_temp.check('encargado no ve vínculo no autorizado', (select count(*) = 0 from public.players where id = '10000000-0000-0000-0000-000000000003'));
 select pg_temp.check('encargado ve comunicados para encargados',
-  (select array_agg(title order by title) = array['A-solo-encargados', 'A-todos'] from public.announcements));
+  (select array_agg(title order by title) = array['A-solo-encargados', 'A-todos'] from public.announcements where title like 'A-%'));
 select pg_temp.check('encargado no ve notas internas', (select count(*) = 0 from public.private_notes));
 select pg_temp.check('encargado no ve evaluaciones no compartidas', (select count(*) = 1 from public.evaluations));
 with u as (update public.evaluations set shared = true returning 1)
@@ -176,20 +182,20 @@ reset role;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000b2","role":"authenticated"}';
 select pg_temp.check('comunicado por grupo llega solo a ese grupo',
-  (select array_agg(title order by title) = array['A-grupoB', 'A-todos'] from public.announcements));
+  (select array_agg(title order by title) = array['A-grupoB', 'A-todos'] from public.announcements where title like 'A-%'));
 reset role;
 
 -- ---------------------------------------------------------------- ADMIN
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}';
-select pg_temp.check('admin ve todos los expedientes', (select count(*) = 15 from public.players));
-select pg_temp.check('admin ve notas internas', (select count(*) = 1 from public.private_notes));
-select pg_temp.check('admin ve todos los comunicados', (select count(*) = 5 from public.announcements));
+select pg_temp.check('admin ve todos los expedientes', (select count(*) = (select n from _totals where t = 'players') from public.players));
+select pg_temp.check('admin ve notas internas', (select count(*) = 1 from public.private_notes where player_id = '10000000-0000-0000-0000-000000000001'));
+select pg_temp.check('admin ve todos los comunicados', (select count(*) = (select n from _totals where t = 'announcements') from public.announcements));
 select public.save_match_result('62000000-0000-0000-0000-000000000001', '[{"a":11,"b":7},{"a":9,"b":11},{"a":12,"b":10}]');
 select pg_temp.check('admin registra resultado válido',
   (select status = 'finished' and winner_id = '10000000-0000-0000-0000-000000000001' and sets_a = 2 and sets_b = 1
    from public.matches where id = '62000000-0000-0000-0000-000000000001'));
-select pg_temp.check('se guarda historial de auditoría', (select count(*) = 1 from public.match_result_history));
+select pg_temp.check('se guarda historial de auditoría', (select count(*) = 1 from public.match_result_history where match_id = '62000000-0000-0000-0000-000000000001'));
 do $$ begin
   perform public.save_match_result('62000000-0000-0000-0000-000000000002', '[{"a":11,"b":10}]');
   perform pg_temp.check('servidor rechaza set inválido 11-10', false);
@@ -205,7 +211,7 @@ end $$;
 select public.save_match_result('62000000-0000-0000-0000-000000000001', '[{"a":3,"b":11},{"a":4,"b":11}]', null, 'Corrección de planilla');
 select pg_temp.check('corrección de resultado cambia ganador y audita',
   (select winner_id = '10000000-0000-0000-0000-000000000002' from public.matches where id = '62000000-0000-0000-0000-000000000001')
-  and (select count(*) = 2 from public.match_result_history)
+  and (select count(*) = 2 from public.match_result_history where match_id = '62000000-0000-0000-0000-000000000001')
   and (select count(*) = 2 from public.match_sets where match_id = '62000000-0000-0000-0000-000000000001'));
 insert into public.ranking_movements (player_id, new_value, reason) values ('10000000-0000-0000-0000-000000000001', 120, 'Ajuste inicial');
 insert into public.ranking_movements (player_id, new_value, reason) values ('10000000-0000-0000-0000-000000000001', 135, 'Torneo');

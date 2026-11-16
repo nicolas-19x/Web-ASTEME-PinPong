@@ -65,7 +65,7 @@ export default function PortalHome() {
                 <Link to={`/portal/jugador/${p.id}`} className="flex items-center gap-4 rounded-xl border bg-card p-4 hover:border-table/50">
                   <PlayerAvatar player={p} size={60} />
                   <span>
-                    <span className="condensed block text-[1.4rem] font-bold">{fullName(p)}</span>
+                    <span className="condensed block text-[1.4rem] font-bold" data-player-name>{fullName(p)}</span>
                     <span className="text-sm text-muted-foreground">
                       {p.categories?.name}, {playerAge(p).label.toLowerCase()}
                     </span>

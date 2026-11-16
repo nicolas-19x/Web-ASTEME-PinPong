@@ -119,7 +119,7 @@ export default function TournamentDetail() {
         <ChevronLeft className="size-4" aria-hidden /> Torneos
       </Link>
 
-      <section className="table-band mb-6 overflow-hidden rounded-xl p-5 sm:p-6">
+      <section className="table-band-h mb-6 overflow-hidden rounded-xl p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
