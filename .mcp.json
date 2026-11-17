@@ -27,10 +27,7 @@
       "command": "node",
       "args": [
         "/home/user/openfield/dist/mcp.js"
-      ],
-      "env": {
-        "FAL_KEY": "${FAL_KEY:-}"
-      }
+      ]
     }
   }
 }
